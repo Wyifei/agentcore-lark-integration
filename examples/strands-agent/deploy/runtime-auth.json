@@ -1,0 +1,12 @@
+{
+  "$comment": "The authorizer part of CreateAgentRuntime / UpdateAgentRuntime. Replace <...> with the values printed by bind (design 5.3).",
+  "authorizerConfiguration": {
+    "customJWTAuthorizer": {
+      "discoveryUrl": "https://cognito-idp.<region>.amazonaws.com/<userPoolId>/.well-known/openid-configuration",
+      "allowedClients": ["<app client id printed by bind>"]
+    }
+  },
+  "requestHeaderConfiguration": {
+    "requestHeaderAllowlist": ["Authorization"]
+  }
+}

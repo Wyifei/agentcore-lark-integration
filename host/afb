@@ -1,0 +1,11 @@
+#!/bin/bash
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: MIT-0
+# /opt/agentcore-feishu-bot/bin/afb: fixed entry point owned by root, forwards to current/ (design 4.7)
+# sudoers matches on this path; an upgrade only changes the current symlink.
+set -eu
+cd /
+export AFB_DATA_DIR=/var/lib/agentcore-feishu-bot
+export AFB_LOG_FILE=/var/log/agentcore-feishu-bot/serve.log
+readonly CUR=/opt/agentcore-feishu-bot/current
+exec "$CUR/node" --no-warnings=ExperimentalWarning "$CUR/afb.mjs" "$@"

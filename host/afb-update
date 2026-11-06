@@ -1,0 +1,21 @@
+#!/bin/bash
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: MIT-0
+# /opt/agentcore-feishu-bot/bin/afb-update: runs as root, sudoers restricts it to no arguments (design 4.7, 10)
+# Version: read releases/LATEST in the release bucket by default, or enter it interactively; validated against ^[0-9]+\.[0-9]+\.[0-9]+$.
+set -euo pipefail
+if [ $# -ne 0 ]; then echo "afb-update 不接受参数" >&2; exit 2; fi
+# shellcheck disable=SC1091
+. /etc/agentcore-feishu-bot/host.env
+
+latest=$(aws s3 cp "s3://${AFB_RELEASE_BUCKET}/releases/LATEST" - --region "$AFB_REGION" | tr -d '[:space:]')
+current=$(basename "$(readlink -f /opt/agentcore-feishu-bot/current)" 2>/dev/null || echo "无")
+echo "当前版本：$current"
+echo "最新版本：$latest"
+version="$latest"
+if [ -t 0 ]; then
+  read -r -p "要安装的版本 [$latest]: " input || true
+  version="${input:-$latest}"
+fi
+if ! [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then echo "版本号格式不对：$version" >&2; exit 2; fi
+exec /opt/agentcore-feishu-bot/bin/afb-fetch-release "$version"

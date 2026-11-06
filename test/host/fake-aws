@@ -1,0 +1,6 @@
+#!/bin/bash
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: MIT-0
+# Fake aws CLI: s3 cp s3://bucket/key <dest|->  reads from the /bucket directory
+src="$3"; dst="$4"; key="${src#s3://*/}"
+if [ "$dst" = "-" ]; then cat "/bucket/$key"; else cp "/bucket/$key" "$dst"; fi

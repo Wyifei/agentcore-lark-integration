@@ -1,0 +1,18 @@
+{"type": "tool_start", "id": "tooluse_XpEs1AjfVCFEtP65btVSHY", "name": "current_time"}
+{"type": "usage", "inputTokens": 422, "outputTokens": 26, "cacheReadTokens": 0, "cacheWriteTokens": 0, "model": "global.anthropic.claude-sonnet-5-5"}
+{"type": "tool_start", "id": "tooluse_XpEs1AjfVCFEtP65btVSHY", "name": "current_time", "input": {}}
+{"type": "tool_end", "id": "tooluse_XpEs1AjfVCFEtP65btVSHY", "status": "success", "summary": "2026-11-06T00:25:52.828321+00:00"}
+{"type": "text", "delta": "现"}
+{"type": "text", "delta": "在是北"}
+{"type": "text", "delta": "京时间 "}
+{"type": "text", "delta": "2026 "}
+{"type": "text", "delta": "年 11 月 6 "}
+{"type": "text", "delta": "日 08"}
+{"type": "text", "delta": ":25("}
+{"type": "text", "delta": "UTC 时"}
+{"type": "text", "delta": "间 "}
+{"type": "text", "delta": "00:25 "}
+{"type": "text", "delta": "加 "}
+{"type": "text", "delta": "8 小时)。"}
+{"type": "usage", "inputTokens": 472, "outputTokens": 46, "cacheReadTokens": 0, "cacheWriteTokens": 0, "model": "global.anthropic.claude-sonnet-5-5"}
+{"type": "done"}

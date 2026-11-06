@@ -1,0 +1,15 @@
+{
+  "$comment": "Minimal permission set (design 4.4). S7 is still to be verified: confirm each item in a test tenant, then update this file and section 12 of the design document.",
+  "tenant": [
+    "im:message.p2p_msg:readonly",
+    "im:message.group_at_msg:readonly",
+    "im:message:readonly",
+    "im:message:send_as_bot",
+    "im:resource",
+    "cardkit:card:write",
+    "contact:user.id:readonly",
+    "contact:user.base:readonly"
+  ],
+  "events": ["im.message.receive_v1", "im.chat.member.bot.added_v1", "im.chat.member.bot.deleted_v1"],
+  "callbacks": ["card.action.trigger"]
+}

@@ -1,0 +1,9 @@
+bedrock-agentcore[strands-agents]==1.25.3
+strands-agents==1.64.0
+aws-opentelemetry-distro==0.22.0
+# Transitive dependencies pinned to tested releases (older releases have known vulnerabilities)
+anyio==4.16.0
+certifi==2026.10.23
+idna==3.20
+python-multipart==0.0.33
+requests==2.34.2

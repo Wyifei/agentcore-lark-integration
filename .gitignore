@@ -1,0 +1,14 @@
+node_modules/
+dist/
+cdk.out/
+.env
+*.log
+.DS_Store
+# Local development data directory (npm run dev)
+.data/
+__pycache__/
+
+# Local scan tool output and npm config
+.holmes/
+.protoshield/
+.npmrc

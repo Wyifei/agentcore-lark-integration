@@ -1,0 +1,4 @@
+# /etc/sudoers.d/agentcore-feishu-bot (design 4.7)
+%afbot-admin ALL=(afbot) NOPASSWD: /opt/agentcore-feishu-bot/bin/afb *
+%afbot-admin ALL=(root)  NOPASSWD: /usr/bin/systemctl reload agentcore-feishu-bot, /usr/bin/systemctl restart agentcore-feishu-bot
+%afbot-admin ALL=(root)  NOPASSWD: /opt/agentcore-feishu-bot/bin/afb-update ""

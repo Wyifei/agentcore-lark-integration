@@ -1,0 +1,39 @@
+[Unit]
+Description=AgentCore Feishu bot
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=afbot
+Group=afbot
+WorkingDirectory=/
+Environment=AFB_DATA_DIR=/var/lib/agentcore-feishu-bot
+Environment=AFB_LOG_FILE=/var/log/agentcore-feishu-bot/serve.log
+EnvironmentFile=-/etc/agentcore-feishu-bot/host.env
+ExecStart=/opt/agentcore-feishu-bot/current/node --no-warnings=ExperimentalWarning /opt/agentcore-feishu-bot/current/afb.mjs serve
+ExecReload=/bin/kill -HUP $MAINPID
+Restart=always
+RestartSec=5
+# Shutdown: stop accepting new messages and wait up to 60 seconds for turns in progress (design 5.5)
+KillSignal=SIGTERM
+TimeoutStopSec=90
+StandardOutput=append:/var/log/agentcore-feishu-bot/serve.log
+StandardError=append:/var/log/agentcore-feishu-bot/serve.log
+UMask=0077
+# Hardening
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+ReadWritePaths=/var/lib/agentcore-feishu-bot
+CapabilityBoundingSet=
+
+[Install]
+WantedBy=multi-user.target

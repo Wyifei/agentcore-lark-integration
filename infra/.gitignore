@@ -1,0 +1,5 @@
+node_modules/
+cdk.out/
+# Contains deployment environment details such as the account, VPC, and subnets; not committed
+cdk-outputs.json
+cdk.context.json
