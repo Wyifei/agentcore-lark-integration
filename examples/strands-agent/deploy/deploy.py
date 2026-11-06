@@ -29,12 +29,11 @@ def build_zip(out: pathlib.Path) -> pathlib.Path:
     pkg = out / "package"
     if pkg.exists():
         shutil.rmtree(pkg)
-    uv = shutil.which("uv")
-    if uv is None:
+    if shutil.which("uv") is None:
         sys.exit("uv not found on PATH: https://docs.astral.sh/uv/")
     # Fixed argv (no shell); every argument is a constant or a path derived from this script.
     subprocess.run(  # nosec B603
-        [uv, "pip", "install", "--python-platform", "aarch64-manylinux2014", "--python-version", "3.13",
+        ["uv", "pip", "install", "--python-platform", "aarch64-manylinux2014", "--python-version", "3.13",
          "--target", str(pkg), "--only-binary=:all:", "-q", "-r", str(SRC / "requirements.txt")],
         check=True,
     )
