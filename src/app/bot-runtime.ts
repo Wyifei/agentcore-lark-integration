@@ -20,7 +20,7 @@ import {
   type ReceiveEvent,
 } from '../lark/message-parser.ts';
 import { replyTargetFor } from '../lark/reply-target.ts';
-import { buildNoticeCard, buildQueuedCard } from '../render/cards.ts';
+import { buildNoticeCard, buildQueuedCard, escapeMd } from '../render/cards.ts';
 import { anchorOf, sessionKeyOf } from '../session/keys.ts';
 import type { SessionQueues } from '../session/queue.ts';
 import type { Session, SessionStore, StoredPrompt } from '../session/store.ts';
@@ -345,7 +345,7 @@ export class BotRuntime {
       header: { title: { tag: 'plain_text', content: '使用申请' }, template: 'blue' },
       body: {
         elements: [
-          { tag: 'markdown', content: `**${name}** 申请使用 **${this.bot.appName}**\n<font color='grey'>来源：${chatType === 'p2p' ? '私聊' : '群聊'} · ${when}</font>` },
+          { tag: 'markdown', content: `**${escapeMd(name)}** 申请使用 **${escapeMd(this.bot.appName)}**\n<font color='grey'>来源：${chatType === 'p2p' ? '私聊' : '群聊'} · ${when}</font>` },
           {
             tag: 'column_set',
             flex_mode: 'none',

@@ -7,6 +7,8 @@ cdk.out/
 # Local development data directory (npm run dev)
 .data/
 __pycache__/
+# Reference agent build output (examples/strands-agent/deploy/deploy.py)
+.build/
 
 # Local scan tool output and npm config
 .holmes/

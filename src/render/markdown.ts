@@ -10,7 +10,15 @@
 export const MAX_TABLES = 5;
 
 const FENCE = /^\s{0,3}(`{3,}|~{3,})/;
-const TABLE_SEP = /^\s*\|?\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)*\|?\s*$/;
+const SEP_CELL = /^:?-{3,}:?$/;
+
+/** GFM table separator row such as `| --- | :---: |` (checked cell by cell, so there is no backtracking) */
+function isTableSeparator(line: string): boolean {
+  let s = line.trim();
+  if (s.startsWith('|')) s = s.slice(1);
+  if (s.endsWith('|')) s = s.slice(0, -1);
+  return s.split('|').every((c) => SEP_CELL.test(c.trim()));
+}
 const LARK_TAGS = /<(\/?)(at|font|text_tag|link|person|local_datetime|number_tag|record)\b/gi;
 
 export function prepareCardMarkdown(input: string): string {
@@ -33,7 +41,7 @@ export function prepareCardMarkdown(input: string): string {
     }
     // Table: header row + separator row
     const next = lines[i + 1];
-    if (line.includes('|') && next !== undefined && TABLE_SEP.test(next)) {
+    if (line.includes('|') && next !== undefined && isTableSeparator(next)) {
       let j = i + 2;
       while (j < lines.length && lines[j]!.includes('|') && lines[j]!.trim()) j++;
       const block = lines.slice(i, j);

@@ -15,11 +15,11 @@ import pathlib
 import shutil
 import subprocess
 import sys
-import time
 import zipfile
 
 import boto3
-from botocore.exceptions import ClientError
+from botocore.exceptions import ClientError, WaiterError
+from botocore.waiter import WaiterModel, create_waiter_with_client
 
 HERE = pathlib.Path(__file__).resolve().parent
 SRC = HERE.parent
@@ -29,11 +29,12 @@ def build_zip(out: pathlib.Path) -> pathlib.Path:
     pkg = out / "package"
     if pkg.exists():
         shutil.rmtree(pkg)
-    if shutil.which("uv") is None:
+    uv = shutil.which("uv")
+    if uv is None:
         sys.exit("uv not found on PATH: https://docs.astral.sh/uv/")
     # Fixed argv (no shell); every argument is a constant or a path derived from this script.
     subprocess.run(  # nosec B603
-        ["uv", "pip", "install", "--python-platform", "aarch64-manylinux2014", "--python-version", "3.13",
+        [uv, "pip", "install", "--python-platform", "aarch64-manylinux2014", "--python-version", "3.13",
          "--target", str(pkg), "--only-binary=:all:", "-q", "-r", str(SRC / "requirements.txt")],
         check=True,
     )
@@ -52,6 +53,18 @@ def build_zip(out: pathlib.Path) -> pathlib.Path:
                 zf.writestr(info, f.read_bytes())
     print(f"zip: {z} ({z.stat().st_size // 1024 // 1024} MB)")
     return z
+
+
+def runtime_waiter(ctl):
+    """Waits until the runtime leaves CREATING / UPDATING (boto3 has no built-in waiter for runtimes)."""
+    model = WaiterModel({"version": 2, "waiters": {"RuntimeSettled": {
+        "operation": "GetAgentRuntime", "delay": 10, "maxAttempts": 90,
+        "acceptors": [
+            {"matcher": "path", "argument": "status", "expected": "READY", "state": "success"},
+            {"matcher": "path", "argument": "status", "expected": "CREATE_FAILED", "state": "failure"},
+            {"matcher": "path", "argument": "status", "expected": "UPDATE_FAILED", "state": "failure"},
+        ]}}})
+    return create_waiter_with_client("RuntimeSettled", model, ctl)
 
 
 def ensure_bucket(s3, name, region, account):
@@ -77,6 +90,7 @@ def ensure_role(iam, name, region, account, bucket, memory_arn):
     except ClientError:
         arn = iam.create_role(RoleName=name, AssumeRolePolicyDocument=json.dumps(trust),
                               Description="afb reference agent execution role")["Role"]["Arn"]
+        iam.get_waiter("role_exists").wait(RoleName=name)
         print(f"created role {name}")
     stmts = [
         {"Sid": "Models", "Effect": "Allow", "Action": ["bedrock:InvokeModel", "bedrock:InvokeModelWithResponseStream"],
@@ -116,13 +130,10 @@ def ensure_memory(ctl, name):
     r = ctl.create_memory(name=name, description="afb reference agent short-term memory", eventExpiryDuration=30)
     mid = r["memory"]["id"]
     print(f"creating memory {mid} ...")
-    while True:
-        st = ctl.get_memory(memoryId=mid)["memory"]["status"]
-        if st == "ACTIVE":
-            break
-        if st == "FAILED":
-            sys.exit("memory creation failed")
-        time.sleep(10)
+    try:
+        ctl.get_waiter("memory_created").wait(memoryId=mid, WaiterConfig={"Delay": 10, "MaxAttempts": 60})
+    except WaiterError as e:
+        sys.exit(f"memory creation failed: {e}")
     return mid, r["memory"]["arn"]
 
 
@@ -150,7 +161,7 @@ def main():
         env["AGENTCORE_MEMORY_ID"] = mid
     role = ensure_role(iam, f"afb-agent-{a.name}"[:64], a.region, account, bucket, memory_arn)
 
-    out = pathlib.Path("/tmp/afb-agent-build")
+    out = HERE / ".build"  # kept between runs so --skip-build can reuse the last package (gitignored)
     out.mkdir(exist_ok=True)
     z = out / "deployment_package.zip" if a.skip_build else build_zip(out)
     key = f"{a.name}/deployment_package.zip"
@@ -183,24 +194,21 @@ def main():
         if not token:
             break
     existing = next((r for r in runtimes if r["agentRuntimeName"] == a.name), None)
-    for attempt in range(6):  # A newly created IAM role may not be effective yet
-        try:
-            if existing:
-                r = ctl.update_agent_runtime(agentRuntimeId=existing["agentRuntimeId"], **kwargs)
-            else:
-                r = ctl.create_agent_runtime(agentRuntimeName=a.name, **kwargs)
-            break
-        except ClientError as e:
-            if "role" in str(e).lower() and attempt < 5:
-                time.sleep(10)
-                continue
-            raise
+    try:
+        if existing:
+            r = ctl.update_agent_runtime(agentRuntimeId=existing["agentRuntimeId"], **kwargs)
+        else:
+            r = ctl.create_agent_runtime(agentRuntimeName=a.name, **kwargs)
+    except ClientError as e:
+        if "role" in str(e).lower():
+            sys.exit(f"{e}\nA newly created IAM role can take a few seconds to become usable; run the command again.")
+        raise
     rid = r["agentRuntimeId"]
-    while True:
-        st = ctl.get_agent_runtime(agentRuntimeId=rid)
-        if st["status"] in ("READY", "CREATE_FAILED", "UPDATE_FAILED"):
-            break
-        time.sleep(10)
+    try:
+        runtime_waiter(ctl).wait(agentRuntimeId=rid)
+    except WaiterError as e:
+        print(f"runtime did not become READY: {e}", file=sys.stderr)  # the status and failureReason follow
+    st = ctl.get_agent_runtime(agentRuntimeId=rid)
     print(json.dumps({"arn": st["agentRuntimeArn"], "status": st["status"], "version": st["agentRuntimeVersion"],
                       "failureReason": st.get("failureReason")}, ensure_ascii=False))
 

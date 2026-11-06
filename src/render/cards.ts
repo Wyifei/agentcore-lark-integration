@@ -85,7 +85,8 @@ function md(elementId: string | undefined, content: string, extra: Json = {}): J
 
 const ICON: Record<ToolCall['status'], string> = { running: '⏳', success: '⏺', error: '❌' };
 
-function escapeMd(s: string): string {
+/** Escape Feishu card markdown, so user-supplied text cannot inject formatting, links, or tags such as <at> / <font> */
+export function escapeMd(s: string): string {
   return s.replace(/([*_`[\]<>~|])/g, '\\$1');
 }
 

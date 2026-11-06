@@ -16,6 +16,7 @@ import json
 import logging
 import os
 import re
+import tempfile
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
@@ -35,9 +36,9 @@ MAX_SUMMARY = 200  # Send only a summary of tool results; a single streaming eve
 # For testing: with RAW_EVENTS=1, yield the raw Strands events as they are (simulates a customer agent that does not use this template)
 RAW_EVENTS = os.environ.get("RAW_EVENTS") == "1"
 
-# Files (design 6.4): mount point of session storage (deploy.py --session-storage /mnt/afb), kept across microVMs; falls back to /tmp when absent (valid only in this microVM)
+# Files (design 6.4): mount point of session storage (deploy.py --session-storage /mnt/afb), kept across microVMs; falls back to a private temporary directory when absent (valid only in this microVM)
 SESSION_MOUNT = os.environ.get("SESSION_STORAGE_PATH", "/mnt/afb")
-UPLOAD_DIR = Path(SESSION_MOUNT if os.path.isdir(SESSION_MOUNT) else "/tmp/afb") / "uploads"
+UPLOAD_DIR = Path(SESSION_MOUNT if os.path.isdir(SESSION_MOUNT) else tempfile.mkdtemp(prefix="afb-")) / "uploads"
 DOC_FORMATS = {"pdf", "csv", "doc", "docx", "xls", "xlsx", "html", "txt", "md"}
 DOC_MAX_BYTES = 4_500_000           # Size limit of a Bedrock document block (about 4.5 MB)
 TEXT_MAX_CHARS = 100_000
@@ -297,7 +298,7 @@ async def invoke(payload: dict, context: RequestContext):
             if pending:
                 # The user sent an ordinary message while waiting for confirmation: cancel the unanswered interrupt and handle the new message (design 6.5)
                 async for _ in agent.stream_async([{"interruptResponse": {"interruptId": it.id, "response": REJECT}} for it in pending]):
-                    pass
+                    continue  # the cancelled turn's events are discarded
             agent_input = build_prompt(payload)
         started: set[str] = set()
         interrupted = None
