@@ -458,7 +458,7 @@ The agent on AgentCore Runtime is custom code whose payload we define, so files 
 
 - Handling in the current turn:
   - A document format Bedrock supports (PDF, DOC/DOCX, XLS/XLSX, CSV, HTML, TXT, MD) within the model limit (about 4.5 MB): convert it to a Strands / Bedrock `document` content block for the model to read directly.
-  - Other text (code, logs, JSON, and so on): decode to text and put it in the prompt, truncated with a note if too long.
+  - Other text (code, logs, JSON, and so on): decode it and put only the beginning in the prompt (the reference template: 8,000 characters, with the total length and how to read further). The rest is read on demand with `read_uploaded_file(name, offset)`, at most 20,000 characters per call. The inlined part stays in the conversation history and is resent on every later turn, so it must stay small.
   - Other formats, or over the limit: only tell the model "the file is saved at some path" and let a tool read it (for example Python parsing, or AgentCore Code Interpreter).
 - Referring to files across turns: the agent writes files to this session's storage (under `uploads/`, with a sanitized file name) and reads them in later turns as needed.
   - The microVM's local disk is valid only while this microVM is alive.

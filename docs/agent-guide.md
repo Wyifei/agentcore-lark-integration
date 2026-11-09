@@ -188,7 +188,7 @@ The bot inlines files in `files` (each <= 20 MB, <= 50 MB per turn, at most 5 pe
 
 - **Handling in the current turn:**
   - PDF, DOC/DOCX, XLS/XLSX, CSV, HTML, TXT, MD and <= about 4.5 MB → a Strands `document` content block.
-  - Other text → decode to text and put it in the prompt, truncated if too long.
+  - Other text → decode it and put only the beginning in the prompt (the reference template uses 8,000 characters), and let the model read the rest with a tool in parts. **Whatever goes into the prompt stays in the conversation history and is sent to the model again on every later turn** (and Memory restores it in a new microVM), so a large inlined file multiplies the input tokens of the rest of the conversation. In testing, a 3 MB JSON file inlined at 100,000 characters raised every later turn from about 1k to about 110k input tokens.
   - Other formats, or over the limit → save to disk and tell the model to read it with a tool.
 - **The `name` of a document block must be unique within the whole conversation.** Bedrock rejects requests whose history contains a document with a duplicate name, and since the history is already stored in Memory, **every later turn of that conversation fails** (tested). Add a random suffix every time you generate a document block, for example `plan [3f9a1c2e]`. A name may contain only letters, digits, single spaces, and `-()[]`.
 - **Referring to files across turns.** Write the file into this session's storage (`uploads/<sanitized file name>`) and provide tools to list and read uploaded files.

@@ -41,7 +41,9 @@ SESSION_MOUNT = os.environ.get("SESSION_STORAGE_PATH", "/mnt/afb")
 UPLOAD_DIR = Path(SESSION_MOUNT if os.path.isdir(SESSION_MOUNT) else tempfile.mkdtemp(prefix="afb-")) / "uploads"
 DOC_FORMATS = {"pdf", "csv", "doc", "docx", "xls", "xlsx", "html", "txt", "md"}
 DOC_MAX_BYTES = 4_500_000           # Size limit of a Bedrock document block (about 4.5 MB)
-TEXT_MAX_CHARS = 100_000
+TEXT_INLINE_CHARS = 8_000           # Text put into the message on upload. The message stays in the conversation history and is
+                                    # sent on every later turn, so larger files are read on demand with read_uploaded_file
+TEXT_PAGE_CHARS = 20_000            # Most text one read_uploaded_file call returns
 TEXT_EXTS = {"txt", "md", "csv", "json", "xml", "yaml", "yml", "log", "py", "js", "ts", "java", "go", "sql", "sh", "html", "htm", "ini", "toml"}
 
 
@@ -96,8 +98,9 @@ IMAGE_FORMATS = {"png": "png", "jpg": "jpeg", "jpeg": "jpeg", "gif": "gif", "web
 IMAGE_MAX_BYTES = 3_750_000          # Size limit of a Bedrock image block (about 3.75 MB)
 
 
-def file_block(name: str, data: bytes) -> dict | None:
-    """A form the model can read directly: image / document / text block; returns None if none fits."""
+def file_block(name: str, data: bytes, offset: int = 0, limit: int = TEXT_INLINE_CHARS) -> dict | None:
+    """A form the model can read directly: image / document / text block; returns None if none fits.
+    Text files return the characters [offset, offset + limit) and say how to read the rest."""
     ext = ext_of(name)
     if ext in IMAGE_FORMATS and len(data) <= IMAGE_MAX_BYTES:
         # When an image arrives as a file attachment (not a Feishu image message), let the model see it directly too
@@ -106,8 +109,16 @@ def file_block(name: str, data: bytes) -> dict | None:
         return {"document": {"format": ext, "name": doc_name(name), "source": {"bytes": data}}}
     if ext in TEXT_EXTS:
         text = data.decode("utf-8", errors="replace")
-        more = "\n…（内容过长，已截断）" if len(text) > TEXT_MAX_CHARS else ""
-        return {"text": f"文件 {name} 的内容：\n```\n{text[:TEXT_MAX_CHARS]}\n```{more}"}
+        offset = min(offset, len(text))
+        part = text[offset:offset + limit]
+        end = offset + len(part)
+        if offset == 0 and end >= len(text):
+            return {"text": f"文件 {name} 的内容：\n```\n{text}\n```"}
+        if end < len(text):
+            rest = f"需要后面的内容时调用 read_uploaded_file(name=\"{name}\", offset={end})。"
+        else:
+            rest = "已到文件结尾。"
+        return {"text": f"文件 {name} 的内容（第 {offset}–{end} 个字符，共 {len(text)} 个）：\n```\n{part}\n```\n{rest}"}
     return None
 
 
@@ -121,12 +132,13 @@ def list_uploaded_files() -> str:
 
 
 @tool
-def read_uploaded_file(name: str) -> dict:
-    """Read the content of a file the user uploaded earlier. name is a file name returned by list_uploaded_files."""
+def read_uploaded_file(name: str, offset: int = 0) -> dict:
+    """Read the content of a file the user uploaded earlier. name is a file name returned by list_uploaded_files.
+    Text files are returned in parts of up to 20,000 characters starting at offset; the result says where the next part starts."""
     path = UPLOAD_DIR / safe_filename(name)
     if not path.is_file():
         return {"status": "error", "content": [{"text": f"找不到文件 {name}"}]}
-    block = file_block(path.name, path.read_bytes())
+    block = file_block(path.name, path.read_bytes(), offset=max(offset, 0), limit=TEXT_PAGE_CHARS)
     if block is None:
         return {"status": "error", "content": [{"text": f"{name} 不是能直接读取的格式（{ext_of(name) or '无扩展名'}）"}]}
     return {"status": "success", "content": [block]}
